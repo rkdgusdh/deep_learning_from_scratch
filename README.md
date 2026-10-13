@@ -1,3 +1,6 @@
+> **MPIIGaze project (fork addition):** gaze estimation on the MPIIGaze dataset built with this textbook's
+> NumPy code - see [`mpiigaze/README.md`](mpiigaze/README.md) for the EDA, the training pipeline and the results.
+
 # 『밑바닥부터 시작하는 딥러닝』
 
 <a href="http://www.yes24.com/Product/Goods/34970929"><img src="https://github.com/WegraLee/deep-learning-from-scratch/blob/master/cover_image.jpg" width="200" align=right></a>

@@ -5,3 +5,7 @@
 *.gz
 *.pyc
 __pycache__/
+
+# MPIIGaze project
+mpiigaze/data/
+mpiigaze/results/*.pkl
