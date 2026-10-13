@@ -7,7 +7,37 @@ built entirely with **NumPy** on top of the code from *Deep Learning from Scratc
 The model takes a 36x60 grayscale eye patch plus the head pose and regresses the gaze direction
 (pitch, yaw). It is evaluated with the standard leave-one-person-out protocol.
 
-RESULTS_PLACEHOLDER
+## Results
+
+Leave-one-person-out on the standard evaluation subset (train on 14 people, test on the 15th; 42,000 / 3,000 eyes;
+Adam, lr 0.001 x0.7 per epoch, batch 100, 3 epochs; about 12 minutes per fold on a laptop CPU).
+
+**Mean angular error: 6.65 deg** vs. 9.21 deg for a constant mean-gaze predictor. GazeNet beats the baseline for
+all 15 participants. For reference, Zhang et al. (CVPR 2015) report 6.3 deg for their LeNet-based model.
+
+Angular error in degrees (lower is better):
+
+| | p00 | p01 | p02 | p03 | p04 | p05 | p06 | p07 | p08 | p09 | p10 | p11 | p12 | p13 | p14 | **mean** |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| mean-gaze baseline | 8.43 | 8.63 | 9.00 | 9.60 | 8.97 | 9.73 | 10.34 | 9.49 | 9.61 | 8.97 | 8.66 | 8.43 | 8.60 | 9.00 | 10.75 | **9.21** |
+| GazeNet | 5.20 | 7.36 | 5.27 | 7.18 | 7.21 | 7.11 | 6.34 | 8.06 | 6.87 | 8.57 | 6.16 | 5.51 | 6.51 | 6.87 | 5.48 | **6.65** |
+
+![LOPO results](figures/lopo_results.png)
+
+Other experiments in `notebooks/02_train_gazenet.ipynb`:
+
+* **Optimizers** (6,000 samples, 3 epochs, test person p00): Adam 5.43 < Momentum 5.78 < AdaGrad 6.35 < SGD 6.86 deg,
+  the same ordering as the textbook's ch06 MNIST comparison.
+* **Head pose ablation**: 5.63 deg with pose vs. 6.08 deg image only (single run; runs vary by ~0.2 deg).
+* **Generalization gap**: 4.9 deg on people seen in training vs. 6.65 deg on the unseen person. Test error barely
+  improves after the first epoch, so person-to-person differences, not under-training, limit accuracy.
+* **Error analysis (p00)**: yaw is predicted well (r = 0.85), pitch less so (r = 0.69, pulled toward the mean).
+
+![Optimizer comparison](figures/optimizer_comparison.png)
+
+**Limitations / next steps**: inputs are not zero-centered (large loss spike in the first iterations); mean-centering,
+data augmentation and the textbook's Dropout / BatchNormalization layers are the natural next experiments.
+Trained weights (`results/gazenet_pXX.pkl`, 14 MB each) are not committed; `train.py` recreates them.
 
 ## Project layout
 

@@ -43,7 +43,7 @@ class RegressionTrainer:
         if n is None or n >= x.shape[0]:
             return x, p, t
         idx = np.linspace(0, x.shape[0] - 1, n).astype(int)
-        return x[idx], p[idx], t[idx]
+        return x[idx], None if p is None else p[idx], t[idx]
 
     def train_epoch(self, epoch):
         start = time.time()
@@ -51,7 +51,7 @@ class RegressionTrainer:
         for i in range(self.iter_per_epoch):
             batch_mask = perm[i * self.batch_size:(i + 1) * self.batch_size]
             x_batch = self.x_train[batch_mask]
-            p_batch = self.p_train[batch_mask]
+            p_batch = None if self.p_train is None else self.p_train[batch_mask]  # None: no head-pose input
             t_batch = self.t_train[batch_mask]
 
             grads = self.network.gradient(x_batch, p_batch, t_batch)

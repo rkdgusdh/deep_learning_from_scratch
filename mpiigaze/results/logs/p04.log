@@ -1,0 +1,10 @@
+[p04] train 42000 / test 3000, mean-gaze baseline: 8.97 deg
+=== epoch:1, loss:0.20352, train err:5.87 deg, test err:6.47 deg (194s) ===
+=== epoch:2, loss:0.00704, train err:5.49 deg, test err:6.98 deg (198s) ===
+=== epoch:3, loss:0.00626, train err:5.17 deg, test err:7.21 deg (200s) ===
+=============== Final Test Angular Error ===============
+test err: 7.21 deg
+
+person   baseline    GazeNet
+p04         8.97 deg      7.21 deg
+mean        8.97 deg      7.21 deg
