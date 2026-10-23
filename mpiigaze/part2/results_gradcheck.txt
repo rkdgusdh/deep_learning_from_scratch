@@ -1,0 +1,8 @@
+cnn+res+bn+pool  shift  mse       max relative error = 8.88e-04
+cnn+res+bn+pool  shift  smoothl1  max relative error = 3.33e-04
+cnn+res+bn+pool  im2col mse       max relative error = 4.44e-04
+cnn+res+bn+pool  im2col smoothl1  max relative error = 1.11e-04
+stride2+gap      shift  mse       max relative error = 3.57e-07
+stride2+gap      shift  smoothl1  max relative error = 2.17e-06
+stride2+gap      im2col mse       max relative error = 5.61e-06
+stride2+gap      im2col smoothl1  max relative error = 7.05e-08

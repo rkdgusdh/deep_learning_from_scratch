@@ -1,0 +1,231 @@
+\documentclass[10pt,twocolumn,a4paper]{article}
+% 컴파일러: pdfLaTeX (kotex)
+\usepackage[utf8]{inputenc}
+\usepackage[hangul]{kotex}
+\usepackage[a4paper,margin=17mm,columnsep=6mm]{geometry}
+\usepackage{graphicx,booktabs,amsmath,amssymb,siunitx,xcolor,listings,caption,enumitem,hyperref,titlesec,abstract}
+\hypersetup{colorlinks=true,linkcolor=black,citecolor=blue!50!black,urlcolor=blue!50!black}
+\captionsetup{font=small,labelfont=bf,labelsep=period}
+\setlist{leftmargin=1.2em,itemsep=1pt,topsep=2pt}
+\titleformat{\section}{\normalfont\large\bfseries}{\thesection.}{0.5em}{}
+\titleformat{\subsection}{\normalfont\normalsize\bfseries}{\thesubsection}{0.5em}{}
+\titlespacing*{\section}{0pt}{8pt}{3pt}
+\titlespacing*{\subsection}{0pt}{6pt}{2pt}
+\lstset{basicstyle=\ttfamily\footnotesize,backgroundcolor=\color{gray!8},frame=none,
+  columns=fullflexible,keepspaces=true,xleftmargin=3pt,framexleftmargin=3pt,aboveskip=4pt,belowskip=4pt}
+\renewcommand{\abstractnamefont}{\normalfont\bfseries}
+\renewcommand{\abstracttextfont}{\normalfont\small}
+\newcommand{\fillin}[1]{\colorbox{yellow!40}{#1}}
+\newcommand{\dg}{^\circ}
+\renewcommand{\topfraction}{0.9}\renewcommand{\bottomfraction}{0.8}\renewcommand{\textfraction}{0.07}
+\renewcommand{\floatpagefraction}{0.8}\renewcommand{\dbltopfraction}{0.9}\renewcommand{\dblfloatpagefraction}{0.8}
+\setcounter{topnumber}{3}\setcounter{bottomnumber}{2}\setcounter{totalnumber}{5}\setcounter{dbltopnumber}{2}
+
+\title{\Large\bfseries 교재 NumPy 코드 기반 CNN의 사람 독립 시선 추정:\\
+Global Average Pooling 잔차망으로 MPIIGaze LOPO 5.80$\dg$}
+\author{강현오 20243045\\ \small 딥러닝 Term Project \#1 Part 2\\
+\small 코드: \fillin{\url{https://github.com/...}}}
+\date{}
+
+\begin{document}
+\twocolumn[
+\begin{@twocolumnfalse}
+\maketitle
+\vspace{-6mm}
+\begin{abstract}
+본 연구는 딥러닝 프레임워크 없이 교재의 NumPy 레이어만으로 구현한 CNN으로 MPIIGaze 평가 서브셋(15명, 45,000장, $36\times60$ 정규화 눈 영상)의 사람 독립 시선 추정 성능을 개선하였다. 교재 레이어를 NHWC 배치로 재구성하고 im2col 복사를 제거한 평탄화 시프트 합성곱을 구현하여 학습 속도를 2배 높였으며, 출력과 기울기가 교재 코드와 수치적으로 일치함을 확인하였다. 여기에 잔차 블록, 배치 정규화, 데이터 증강, global average pooling(GAP)을 추가하였다. 15명 leave-one-person-out(LOPO) 평가에서 단일 모델의 평균 각도 오차는 Part 1 LeNet 6.65$\dg$, 증강 ResNet 6.24$\dg$, GAP 5.87$\dg$, 첫 풀링을 제거한 고해상도 GAP 5.80$\dg$ 순으로 감소하였고, 파라미터 수는 2.0M에서 0.73M으로 감소하였다. 최종 모델은 15명 중 12명에서 Part 1보다 오차가 낮았다(Wilcoxon $p=0.007$). 잔여 오차의 주요 성분은 사람별 고정 편향(평균 3.4$\dg$)이며, 이를 제거하면 오차가 4.63$\dg$로 감소한다.
+\end{abstract}
+\vspace{4mm}
+\end{@twocolumnfalse}
+]
+
+\section{서론}
+\textbf{배경.} 외관 기반(appearance-based) 시선 추정은 웹캠 눈 영상에서 시선 방향을 회귀하는 문제로, 별도 장비 없이 인간-컴퓨터 상호작용과 주의 분석에 활용된다. Zhang 등~\cite{zhang2015}은 노트북 사용자 15명의 일상 사용 영상으로 구성된 MPIIGaze를 공개하고, 학습에 포함되지 않은 사람에 대한 성능을 측정하는 LOPO 평가를 제안하였다.
+
+\textbf{문제 정의.} 입력은 정규화된 $36\times60$ 흑백 눈 영상과 머리 자세 각도(pitch, yaw), 출력은 시선 각도(pitch, yaw)이다. 평가 지표는 예측 시선 벡터와 정답 벡터 사이 3차원 각도 오차($\dg$)의 평균이다.
+
+\textbf{목표와 제약.} 순전파, 역전파, 최적화는 교재~\cite{saitoh}의 NumPy 코드를 기반으로 구현하며 딥러닝 프레임워크는 사용하지 않는다. 기준 성능은 Part 1 GazeNet(LOPO 6.65$\dg$)과 수업 내 CNN 최고 기록(6.06$\dg$)이다. 목표는 단일 모델로 LOPO 6$\dg$ 미만을 달성하고, 오차 감소 요인과 잔여 오차의 원인을 규명하는 것이다.
+
+\section{방법}
+\subsection{데이터와 전처리}
+\begin{itemize}
+\item 평가 서브셋 목록~\cite{zhang2015}에 따라 참가자별 왼눈 1,500장, 오른눈 1,500장을 사용하였다. 오른눈 영상은 좌우 반전하고 시선과 머리 자세의 yaw 부호를 반전하였다.
+\item 시선 벡터 $(x,y,z)$는 $\theta=\arcsin(-y)$, $\phi=\operatorname{atan2}(-x,-z)$로 변환하였다. 머리 회전 벡터는 Rodrigues 변환 후 회전 행렬의 세 번째 열로부터 각도를 계산하였다.
+\item 정규화 영상은 히스토그램 평활화가 적용된 상태이므로 추가 평활화는 하지 않았다. 화소값은 $[0,1]$로 변환한 뒤 학습셋 평균과 표준편차로 표준화하였다.
+\item 학습 시 증강: $\pm3$픽셀 평행이동, 감마 $\exp(U(-0.3,0.3))$, 대비 $\times U(0.75,1.25)$, 밝기 $\pm0.1$, 가우시안 노이즈 $\sigma=0.02$.
+\end{itemize}
+
+\subsection{NumPy 구현과 검증}
+교재 \texttt{common/layers.py}의 Convolution, Pooling, Affine, Relu, BatchNormalization, Dropout과 \texttt{common/optimizer.py}의 Adam을 기반으로 다음을 변경 또는 추가하였다.
+
+\textbf{평탄화 시프트 합성곱.} stride 1 합성곱에서 패딩된 입력을 $(N H_p W_p, C)$ 행렬로 펴면 커널 위치 $(i,j)$는 행 오프셋 $iW_p+j$의 연속 구간에 대응한다. 따라서 im2col 복사 없이 $k^2$회의 행렬곱과 연속 덧셈으로 순전파와 역전파를 계산할 수 있다. 32$\to$32 채널, 배치 128, $36\times60$ 입력에서 순전파+역전파 시간은 229\,ms에서 114\,ms로 감소하였다. stride 2 합성곱과 입력 채널이 16 미만인 층은 교재의 im2col을 사용한다.
+\begin{lstlisting}[language=Python]
+for i in range(k):          # kernel position (i, j)
+    for j in range(k):
+        o = i * Wp + j      # = row offset
+        Y[:L] += xf[o:o+L] @ W[i, j]
+y = Y.reshape(N, Hp, Wp, -1)[:, :Ho, :Wo]
+\end{lstlisting}
+
+\textbf{채널별 배치 정규화.} 교재 BatchNormalization은 합성곱 출력을 $(N, CHW)$로 펴서 위치별로 정규화한다. 본 연구는 채널별 정규화~\cite{bn}를 사용하며, 이는 교재 레이어를 $(NHW, C)$ 입력에 적용한 것과 동일하다.
+
+\textbf{추가 레이어.} 잔차 블록~\cite{resnet}(conv-BN-ReLU-conv-BN, 차원 변경 시 $1\times1$ conv+BN shortcut), GAP~\cite{nin}, 머리 자세 결합, L1·MSE 손실, 가중치 감쇠(AdamW), 코사인 학습률 스케줄.
+
+\textbf{검증.} (1) 전 레이어를 포함한 소형 망에서 수치 미분 대비 역전파 기울기의 최대 상대 오차는 $9\times10^{-4}$였다(참 기울기가 0인 BN 앞 편향 항목). (2) 동일 가중치·입력에서 교재 레이어 대비 Conv(두 경로), Pooling, Affine, ReLU, BatchNorm의 출력과 기울기 차이는 상대 $10^{-15}$ 수준, Adam~\cite{adam} 20회 갱신 후 차이는 $3.6\times10^{-7}$(엡실론 위치 차이)였다.
+
+\subsection{모델}
+\begin{table}[!htb]
+\centering\small
+\caption{비교 모델. 자세 = 머리 자세 각도 결합.}
+\label{tab:models}
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}p{0.27\linewidth}p{0.55\linewidth}r@{}}
+\toprule
+모델 & 구조 & 파라미터\\
+\midrule
+Part 1 GazeNet & conv5(20)-pool-conv5(50)-pool-FC500-[자세]-FC2 & 1.8M\\
+ResNet (flatten) & conv3(32)-BN-ReLU-maxpool, 잔차 블록 2개 $\times$ 3단계(32·64·128채널; $18{\times}30\to9{\times}15\to5{\times}8$), flatten(5,120)-[자세]-FC256-BN-ReLU-FC2 & 2.0M\\
+ResNet (GAP) & flatten 대신 채널 평균(128) & 0.73M\\
+\textbf{ResNet (GAP, 고해상도)} & 첫 maxpool 제거($36{\times}60\to18{\times}30\to9{\times}15$) & \textbf{0.73M}\\
+\bottomrule
+\end{tabular}
+\end{table}
+표~\ref{tab:models}에 비교 모델을 제시한다. LeNet에서 ResNet으로의 전환은 BN과 잔차 연결로 학습 안정성을 유지하면서 합성곱 깊이를 늘리기 위함이며, 5-fold에서 MLP 6.92$\dg$, ResNet 6.47$\dg$로 효과를 확인하였다. flatten 헤드는 FC 한 층에 1.3M개의 가중치를 사용하며 학습 오차(2--4$\dg$)와 테스트 오차(6$\dg$ 이상)의 차이가 크다. GAP는 위치별 가중치를 제거하여 개인별 외형 패턴의 암기를 줄이기 위해 도입하였다. 고해상도 입력은 동공 위치 등 세부 단서를 첫 단계에서 보존하기 위해 도입하였다.
+
+\subsection{학습과 평가 프로토콜}
+\begin{itemize}
+\item Adam(lr $10^{-3}$, 0.5에폭 워밍업, 코사인 감소 $\to10^{-5}$), 배치 128, 8에폭, 라디안 각도에 대한 L1 손실. 출력층 편향은 학습셋 평균 시선으로 초기화하였다.
+\item \textbf{최종 평가(LOPO).} 1명(3,000장)을 테스트, 14명(42,000장)을 학습에 사용하고 15개 fold 오차의 평균을 보고한다.
+\item \textbf{탐색 평가.} 설정 비교는 3명 단위 5-fold 교차검증 또는 그중 fold 1(p03--p05 테스트)로 수행하고, 선택된 설정만 LOPO로 재평가하였다.
+\item \textbf{테스트 데이터 사용.} 테스트 데이터는 조기 종료와 하이퍼파라미터 선택에 사용하지 않았으며, 마지막 에폭 모델로 보고한다.
+\item \textbf{통계 검정.} 모델 비교는 15명의 사람별 평균 오차에 대한 양측 Wilcoxon 부호순위 검정~\cite{wilcoxon}으로 수행하였다. 시드 변경만으로 fold 1 오차가 0.3$\dg$ 변동하였으므로, 단일 fold에서 0.3$\dg$ 이내의 차이는 유의하지 않은 것으로 간주한다.
+\item 환경: Apple M1 CPU, NumPy 2.0(Accelerate BLAS), 3개 학습 병렬 실행. LOPO fold당 학습 시간은 GAP 44분, 고해상도 GAP 155분이다.
+\end{itemize}
+\textbf{코드.} 전체 구현, 실험 설정, 결과 로그는 \fillin{\url{https://github.com/...}}에 공개하였다.
+
+\section{결과}
+\subsection{LOPO 결과}
+\begin{table}[!htb]
+\centering\small
+\caption{LOPO 단일 모델 결과(15명 평균). 학습 오차는 증강된 학습 배치의 마지막 에폭 평균.}
+\label{tab:lopo}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+모델 & 파라미터 & 오차($\dg$) & 학습($\dg$)\\
+\midrule
+평균 시선 상수 예측 & -- & 9.21 & --\\
+Part 1 GazeNet (3에폭) & 1.8M & 6.65 & --\\
+ResNet (flatten) + 증강 & 2.0M & 6.24 & 4.28\\
+ResNet (GAP) + 증강 & 0.73M & 5.87 & 3.82\\
+\textbf{ResNet (GAP, 고해상도) + 증강} & \textbf{0.73M} & \textbf{5.80} & 3.51\\
+\bottomrule
+\end{tabular}
+\end{table}
+LOPO 결과를 표~\ref{tab:lopo}와 그림~\ref{fig:steps}, 사람별 오차를 그림~\ref{fig:person}, 사람별 쌍체 비교를 표~\ref{tab:stats}에 제시한다. 원 논문~\cite{zhang2015}의 LeNet 계열 모델은 동일 프로토콜에서 6.3$\dg$를 보고하였다.
+
+\begin{figure}[!htb]
+\centering
+\includegraphics[width=\linewidth]{lopo_steps.png}
+\caption{단계별 LOPO 평균 오차(단일 모델). 점선: 6$\dg$.}
+\label{fig:steps}
+\end{figure}
+
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=0.92\textwidth]{lopo_per_person.png}
+\caption{테스트 사람별 LOPO 오차. 최종 모델은 15명 중 12명에서 Part 1보다 낮다.}
+\label{fig:person}
+\end{figure*}
+
+\begin{table}[!htb]
+\centering\small
+\caption{사람별 15쌍 Wilcoxon 부호순위 검정.}
+\label{tab:stats}
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+비교 & 개선 & 평균 차이 & $p$\\
+\midrule
+고해상도 GAP vs Part 1 & 12/15 & $-0.85\dg$ & 0.007\\
+고해상도 GAP vs flatten & 12/15 & $-0.44\dg$ & 0.005\\
+GAP vs flatten & 9/15 & $-0.37\dg$ & 0.19\\
+고해상도 GAP vs GAP & 10/15 & $-0.07\dg$ & 0.42\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{설정 탐색}
+\begin{table}[!htb]
+\centering\small
+\caption{탐색 결과. 상단: 사람 단위 5-fold(8에폭). 하단: fold 1 단일 실행(기준: ResNet (flatten) + 증강 = 6.49$\dg$).}
+\label{tab:search}
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}lr@{}}
+\toprule
+5-fold 교차검증 & 오차($\dg$)\\
+\midrule
+MLP (512-256, BN, 자세 결합) & 6.92\\
+ResNet (flatten) & 6.47\\
+ResNet (flatten) + 증강 & 6.27\\
+\quad + 드롭아웃 0.5 + 가중치 감쇠 & 6.25\\
+\midrule
+fold 1 단일 실행 & 오차($\dg$)\\
+\midrule
+GAP 헤드 (시드 0 / 1) & 6.18 / 6.50\\
+\quad GAP + 고해상도 입력 & \textbf{5.74}\\
+\quad GAP + 잔차 블록 3개씩 & 5.85\\
+\quad GAP + 16에폭 & 6.09\\
+\quad GAP + 좌우 반전 증강 & 6.12\\
+\quad GAP + 채널 1.5배 & 6.28\\
+16에폭 / 학습률 $3\times10^{-3}$ & 6.51 / 6.53\\
+채널 1.5배 / 이미지별 표준화 & 6.67 / 6.68\\
+머리 자세 제거 / 좌우 반전 증강 & 6.71 / 6.73\\
+MSE 손실 & 6.82\\
+강한 증강(이동 $\pm5$ 등) & 7.02\\
+\bottomrule
+\end{tabular}
+\end{table}
+탐색 결과를 표~\ref{tab:search}에 제시한다. fold 0(15에폭)에서 잔차 연결 유무에 따른 오차는 5.46$\dg$와 5.49$\dg$였다.
+
+\subsection{학습 곡선과 잔여 오차}
+\begin{figure}[!htb]
+\centering
+\includegraphics[width=0.95\linewidth]{learning_curves.png}
+\caption{LOPO 15 fold 평균 학습 곡선. 실선: 테스트, 점선: 증강된 학습 배치.}
+\label{fig:curve}
+\end{figure}
+\begin{figure}[!htb]
+\centering
+\includegraphics[width=0.8\linewidth]{person_bias.png}
+\caption{최종 모델의 사람별 평균 잔차(예측$-$정답).}
+\label{fig:bias}
+\end{figure}
+학습 곡선을 그림~\ref{fig:curve}, 사람별 평균 잔차를 그림~\ref{fig:bias}에 제시한다. 사람별 평균 잔차의 크기는 평균 3.38$\dg$이다. 사람별 평균 잔차를 예측에서 차감하면(테스트 라벨을 사용하는 분석용 계산) 오차는 5.80$\dg$에서 4.63$\dg$로 감소한다.
+
+좌우 반전 테스트 시 증강(TTA)을 적용하면 최종 모델의 오차는 5.76$\dg$, GAP 두 모델의 예측 평균은 5.67$\dg$이다. TTA는 테스트 오차 분석 과정에서 도출되었으므로 최종 성능에서 제외한다.
+
+\section{논의}
+\textbf{일반화 병목.} 학습 오차(3.5--4.3$\dg$)와 LOPO 오차(5.8--6.2$\dg$)의 차이는 사람별 고정 편향(그림~\ref{fig:bias})으로 상당 부분 설명된다. 이는 광축과 시선축 사이의 개인차(kappa 각) 등 눈 영상으로 관측되지 않는 요인에 기인하는 것으로 해석된다. 편향 제거의 효과(1.2$\dg$)가 구조 변경의 효과(0.1--0.4$\dg$)보다 크므로, 소수 보정 샘플을 이용한 개인화가 우선적인 개선 방향이다.
+
+\textbf{GAP의 효과.} flatten 헤드를 GAP로 교체하면 파라미터가 64\% 감소하고 LOPO 오차가 0.37$\dg$ 감소하였으나, 사람별 검정에서는 유의하지 않았다($p=0.19$). 고해상도 GAP는 flatten 대비 12명에서 개선되어 유의하였다($p=0.005$). 이는 위치별 가중치 제거가 개인별 외형 암기를 줄이고, 초기 풀링 제거가 세부 단서를 보존한다는 가설과 부합한다. 고해상도의 추가 이득(0.07$\dg$, $p=0.42$)은 유의하지 않고 계산 비용은 3.5배이므로, 비용 대비 성능은 GAP 모델이 우수하다. 최종 모델의 파라미터 수(0.73M)는 Part 1의 41\%로, 메모리 제약이 있는 기기 탑재에 유리하다.
+
+\textbf{비효과 요인.} 강한 증강(7.02$\dg$)과 MSE 손실(6.82$\dg$)은 성능을 저하시켰다. MSE는 이상치(눈 깜빡임, 검출 실패)에 큰 기울기를 부여하므로 평균 각도 오차 최적화에는 L1이 적합한 것으로 판단된다. 이미지별 표준화, 머리 자세 제거, 채널 확장의 차이(0.2$\dg$ 내외)는 시드 변동 범위 이내이다. 블록 6개 규모에서 잔차 연결의 효과는 0.03$\dg$였으며, 이 깊이에서는 기울기 소실이 병목이 아닌 것으로 보인다.
+
+\textbf{한계.} 설정별로 단일 시드만 사용하였고 탐색은 주로 단일 fold로 수행하였다. 계산 시간 제약으로 깊은 GAP 모델(fold 1 5.85$\dg$)은 LOPO로 평가하지 않았다.
+
+\section{결론}
+교재 NumPy 레이어와 수치적으로 동일한 구현에서 합성곱 속도를 2배 높이고 잔차 블록, 배치 정규화, 데이터 증강, GAP를 적용하여 MPIIGaze LOPO 단일 모델 오차 5.80$\dg$를 얻었다(Part 1 대비 $-0.85\dg$, 파라미터 60\% 감소). 성능 향상은 모델 확장보다 과적합 억제(증강, GAP)에서 비롯되었다. 잔여 오차의 주요 성분은 사람별 고정 편향이다. 사람 독립 평가에서는 학습 오차보다 사람 단위 오차 분해가 다음 실험을 선택하는 데 유효한 기준이었다. 향후 과제는 (1) 소수 보정 샘플 기반 개인화, (2) 다중 시드 반복을 통한 신뢰구간 보고, (3) 깊은 GAP 모델의 LOPO 평가이다.
+
+\small
+\begin{thebibliography}{9}\setlength{\itemsep}{1pt}
+\bibitem{zhang2015} X. Zhang, Y. Sugano, M. Fritz, A. Bulling. Appearance-Based Gaze Estimation in the Wild. \textit{CVPR}, 2015.
+\bibitem{resnet} K. He, X. Zhang, S. Ren, J. Sun. Deep Residual Learning for Image Recognition. \textit{CVPR}, 2016.
+\bibitem{nin} M. Lin, Q. Chen, S. Yan. Network In Network. \textit{ICLR}, 2014.
+\bibitem{saitoh} 사이토 고키. 밑바닥부터 시작하는 딥러닝. 한빛미디어. \url{https://github.com/WegraLee/deep-learning-from-scratch}
+\bibitem{bn} S. Ioffe, C. Szegedy. Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift. \textit{ICML}, 2015.
+\bibitem{adam} D. P. Kingma, J. Ba. Adam: A Method for Stochastic Optimization. \textit{ICLR}, 2015.
+\bibitem{wilcoxon} F. Wilcoxon. Individual Comparisons by Ranking Methods. \textit{Biometrics Bulletin}, 1(6), 1945.
+\end{thebibliography}
+
+\end{document}
