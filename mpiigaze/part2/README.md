@@ -15,7 +15,9 @@
 - 최종 모델은 15명 중 12명에서 Part 1보다 낮다 (Wilcoxon 부호순위 검정, p = 0.007).
 - 전체 실험 기록: [`results.csv`](results.csv), 요약 표: [`results_summary.md`](results_summary.md), 보고서 원본: [`report/main.tex`](report/main.tex)
 
-![단계별 개선](figures/lopo_steps.png)
+![모델별 LOPO 오차](figures/lopo_paired.png)
+
+![사람별 고정 편향](figures/person_bias.png)
 
 ## 교재 코드와의 관계
 

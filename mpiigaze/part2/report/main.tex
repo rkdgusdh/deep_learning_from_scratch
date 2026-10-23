@@ -24,7 +24,7 @@
 \title{\Large\bfseries 교재 NumPy 코드 기반 CNN의 사람 독립 시선 추정:\\
 Global Average Pooling 잔차망으로 MPIIGaze LOPO 5.80$\dg$}
 \author{강현오 20243045\\ \small 딥러닝 Term Project \#1 Part 2\\
-\small 코드: \fillin{\url{https://github.com/...}}}
+\small 코드: \url{https://github.com/rkdgusdh/deep_learning_from_scratch/tree/master/mpiigaze/part2}}
 \date{}
 
 \begin{document}
@@ -101,7 +101,7 @@ ResNet (GAP) & flatten 대신 채널 평균(128) & 0.73M\\
 \item \textbf{통계 검정.} 모델 비교는 15명의 사람별 평균 오차에 대한 양측 Wilcoxon 부호순위 검정~\cite{wilcoxon}으로 수행하였다. 시드 변경만으로 fold 1 오차가 0.3$\dg$ 변동하였으므로, 단일 fold에서 0.3$\dg$ 이내의 차이는 유의하지 않은 것으로 간주한다.
 \item 환경: Apple M1 CPU, NumPy 2.0(Accelerate BLAS), 3개 학습 병렬 실행. LOPO fold당 학습 시간은 GAP 44분, 고해상도 GAP 155분이다.
 \end{itemize}
-\textbf{코드.} 전체 구현, 실험 설정, 결과 로그는 \fillin{\url{https://github.com/...}}에 공개하였다.
+\textbf{코드.} 전체 구현, 실험 설정, 결과 로그는 \url{https://github.com/rkdgusdh/deep_learning_from_scratch/tree/master/mpiigaze/part2}에 공개하였다.
 
 \section{결과}
 \subsection{LOPO 결과}
@@ -122,21 +122,14 @@ ResNet (GAP) + 증강 & 0.73M & 5.87 & 3.82\\
 \bottomrule
 \end{tabular}
 \end{table}
-LOPO 결과를 표~\ref{tab:lopo}와 그림~\ref{fig:steps}, 사람별 오차를 그림~\ref{fig:person}, 사람별 쌍체 비교를 표~\ref{tab:stats}에 제시한다. 원 논문~\cite{zhang2015}의 LeNet 계열 모델은 동일 프로토콜에서 6.3$\dg$를 보고하였다.
+LOPO 결과를 표~\ref{tab:lopo}, 사람별 오차와 쌍체 비교를 그림~\ref{fig:steps}와 표~\ref{tab:stats}에 제시한다. 원 논문~\cite{zhang2015}의 LeNet 계열 모델은 동일 프로토콜에서 6.3$\dg$를 보고하였다.
 
 \begin{figure}[!htb]
 \centering
-\includegraphics[width=\linewidth]{lopo_steps.png}
-\caption{단계별 LOPO 평균 오차(단일 모델). 점선: 6$\dg$.}
+\includegraphics[width=\linewidth]{lopo_paired.png}
+\caption{모델별 LOPO 오차. 점: 테스트 사람, 회색 선: 같은 사람 연결, 검은 막대: 15명 평균, 점선: 6$\dg$. 최종 모델 열의 파란 점은 Part 1보다 오차가 낮은 사람(12명), 주황 점은 높은 사람(3명).}
 \label{fig:steps}
 \end{figure}
-
-\begin{figure*}[!t]
-\centering
-\includegraphics[width=0.92\textwidth]{lopo_per_person.png}
-\caption{테스트 사람별 LOPO 오차. 최종 모델은 15명 중 12명에서 Part 1보다 낮다.}
-\label{fig:person}
-\end{figure*}
 
 \begin{table}[!htb]
 \centering\small
@@ -192,15 +185,15 @@ MSE 손실 & 6.82\\
 \begin{figure}[!htb]
 \centering
 \includegraphics[width=0.95\linewidth]{learning_curves.png}
-\caption{LOPO 15 fold 평균 학습 곡선. 실선: 테스트, 점선: 증강된 학습 배치.}
+\caption{LOPO 15 fold 평균 학습 곡선. 실선: 테스트, 점선: 증강된 학습 배치, 음영: 최종 모델의 학습--테스트 오차 차이.}
 \label{fig:curve}
 \end{figure}
-\begin{figure}[!htb]
+\begin{figure*}[!t]
 \centering
-\includegraphics[width=0.8\linewidth]{person_bias.png}
-\caption{최종 모델의 사람별 평균 잔차(예측$-$정답).}
+\includegraphics[width=0.88\textwidth]{person_bias.png}
+\caption{최종 모델의 사람별 고정 편향. (a) 사람별 평균 잔차(예측$-$정답). (b) 사람별 오차와, 각자의 평균 잔차를 차감한 뒤의 오차(테스트 라벨을 사용하는 분석용 계산).}
 \label{fig:bias}
-\end{figure}
+\end{figure*}
 학습 곡선을 그림~\ref{fig:curve}, 사람별 평균 잔차를 그림~\ref{fig:bias}에 제시한다. 사람별 평균 잔차의 크기는 평균 3.38$\dg$이다. 사람별 평균 잔차를 예측에서 차감하면(테스트 라벨을 사용하는 분석용 계산) 오차는 5.80$\dg$에서 4.63$\dg$로 감소한다.
 
 좌우 반전 테스트 시 증강(TTA)을 적용하면 최종 모델의 오차는 5.76$\dg$, GAP 두 모델의 예측 평균은 5.67$\dg$이다. TTA는 테스트 오차 분석 과정에서 도출되었으므로 최종 성능에서 제외한다.
