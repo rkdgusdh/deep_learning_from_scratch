@@ -33,7 +33,7 @@ Global Average Pooling 잔차망으로 MPIIGaze LOPO 5.80$\dg$}
 \maketitle
 \vspace{-6mm}
 \begin{abstract}
-본 연구는 딥러닝 프레임워크 없이 교재의 NumPy 레이어만으로 구현한 CNN으로 MPIIGaze 평가 서브셋(15명, 45,000장, $36\times60$ 정규화 눈 영상)의 사람 독립 시선 추정 성능을 개선하였다. 교재 레이어를 NHWC 배치로 재구성하고 im2col 복사를 제거한 평탄화 시프트 합성곱을 구현하여 학습 속도를 2배 높였으며, 출력과 기울기가 교재 코드와 수치적으로 일치함을 확인하였다. 여기에 잔차 블록, 배치 정규화, 데이터 증강, global average pooling(GAP)을 추가하였다. 15명 leave-one-person-out(LOPO) 평가에서 단일 모델의 평균 각도 오차는 Part 1 LeNet 6.65$\dg$, 증강 ResNet 6.24$\dg$, GAP 5.87$\dg$, 첫 풀링을 제거한 고해상도 GAP 5.80$\dg$ 순으로 감소하였고, 파라미터 수는 2.0M에서 0.73M으로 감소하였다. 최종 모델은 15명 중 12명에서 Part 1보다 오차가 낮았다(Wilcoxon $p=0.007$). 잔여 오차의 주요 성분은 사람별 고정 편향(평균 3.4$\dg$)이며, 이를 제거하면 오차가 4.63$\dg$로 감소한다.
+본 연구는 딥러닝 프레임워크 없이 교재의 NumPy 레이어를 기반으로 직접 구현한 CNN으로 MPIIGaze 평가 서브셋(15명, 45,000장, $36\times60$ 정규화 눈 영상)의 사람 독립 시선 추정 성능을 개선하였다. 교재 레이어를 NHWC 배치로 재구성하고 im2col 복사를 제거한 평탄화 시프트 합성곱을 구현하여 학습 속도를 2배 높였으며, 출력과 기울기가 교재 코드와 수치적으로 일치함을 확인하였다. 여기에 잔차 블록, 배치 정규화, 데이터 증강, global average pooling(GAP)을 추가하였다. 15명 leave-one-person-out(LOPO) 평가에서 단일 모델의 평균 각도 오차는 Part 1 LeNet 6.65$\dg$, 증강 ResNet 6.24$\dg$, GAP 5.87$\dg$, 첫 풀링을 제거한 고해상도 GAP 5.80$\dg$ 순으로 감소하였고, 파라미터 수는 2.0M에서 0.73M으로 감소하였다. 최종 모델은 15명 중 12명에서 Part 1보다 오차가 낮았다(Wilcoxon $p=0.007$). 잔여 오차의 주요 성분은 사람별 고정 편향(평균 3.4$\dg$)이며, 테스트 라벨로 이 편향을 제거하는 사후 분석에서 오차는 4.63$\dg$로 감소한다.
 \end{abstract}
 \vspace{4mm}
 \end{@twocolumnfalse}
@@ -122,7 +122,7 @@ ResNet (GAP) + 증강 & 0.73M & 5.87 & 3.82\\
 \bottomrule
 \end{tabular}
 \end{table}
-LOPO 결과를 표~\ref{tab:lopo}, 사람별 오차와 쌍체 비교를 그림~\ref{fig:steps}와 표~\ref{tab:stats}에 제시한다. 원 논문~\cite{zhang2015}의 LeNet 계열 모델은 동일 프로토콜에서 6.3$\dg$를 보고하였다.
+LOPO 결과를 표~\ref{tab:lopo}, 사람별 오차와 쌍체 비교를 그림~\ref{fig:steps}, 표~\ref{tab:stats}에 제시한다. 원 논문~\cite{zhang2015}의 LeNet 계열 모델은 동일 프로토콜에서 6.3$\dg$를 보고하였다.
 
 \begin{figure}[!htb]
 \centering
@@ -184,13 +184,13 @@ MSE 손실 & 6.82\\
 \subsection{학습 곡선과 잔여 오차}
 \begin{figure}[!htb]
 \centering
-\includegraphics[width=0.95\linewidth]{learning_curves.png}
+\includegraphics[width=\linewidth]{learning_curves.png}
 \caption{LOPO 15 fold 평균 학습 곡선. 실선: 테스트, 점선: 증강된 학습 배치, 음영: 최종 모델의 학습--테스트 오차 차이.}
 \label{fig:curve}
 \end{figure}
 \begin{figure*}[!t]
 \centering
-\includegraphics[width=0.88\textwidth]{person_bias.png}
+\includegraphics[width=\textwidth]{person_bias.png}
 \caption{최종 모델의 사람별 고정 편향. (a) 사람별 평균 잔차(예측$-$정답). (b) 사람별 오차와, 각자의 평균 잔차를 차감한 뒤의 오차(테스트 라벨을 사용하는 분석용 계산).}
 \label{fig:bias}
 \end{figure*}
