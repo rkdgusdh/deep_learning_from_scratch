@@ -3,7 +3,7 @@
 \usepackage[utf8]{inputenc}
 \usepackage[hangul]{kotex}
 \usepackage[a4paper,margin=17mm,columnsep=6mm]{geometry}
-\usepackage{graphicx,booktabs,amsmath,amssymb,siunitx,xcolor,listings,caption,enumitem,hyperref,titlesec,abstract}
+\usepackage{graphicx,booktabs,amsmath,amssymb,siunitx,xcolor,listings,caption,enumitem,hyperref,titlesec,abstract,float}
 \hypersetup{colorlinks=true,linkcolor=black,citecolor=blue!50!black,urlcolor=blue!50!black}
 \captionsetup{font=small,labelfont=bf,labelsep=period}
 \setlist{leftmargin=1.2em,itemsep=1pt,topsep=2pt}
@@ -17,6 +17,7 @@
 \renewcommand{\abstracttextfont}{\normalfont\small}
 \newcommand{\fillin}[1]{\colorbox{yellow!40}{#1}}
 \newcommand{\dg}{^\circ}
+\raggedbottom  % [H] 배치로 생기는 단 하단 여백을 문단 간격으로 늘리지 않는다
 \renewcommand{\topfraction}{0.9}\renewcommand{\bottomfraction}{0.8}\renewcommand{\textfraction}{0.07}
 \renewcommand{\floatpagefraction}{0.8}\renewcommand{\dbltopfraction}{0.9}\renewcommand{\dblfloatpagefraction}{0.8}
 \setcounter{topnumber}{3}\setcounter{bottomnumber}{2}\setcounter{totalnumber}{5}\setcounter{dbltopnumber}{2}
@@ -74,7 +75,7 @@ y = Y.reshape(N, Hp, Wp, -1)[:, :Ho, :Wo]
 \textbf{검증.} (1) 전 레이어를 포함한 소형 망에서 수치 미분 대비 역전파 기울기의 최대 상대 오차는 $9\times10^{-4}$였다(참 기울기가 0인 BN 앞 편향 항목). (2) 동일 가중치·입력에서 교재 레이어 대비 Conv(두 경로), Pooling, Affine, ReLU, BatchNorm의 출력과 기울기 차이는 상대 $10^{-15}$ 수준, Adam~\cite{adam} 20회 갱신 후 차이는 $3.6\times10^{-7}$(엡실론 위치 차이)였다.
 
 \subsection{모델}
-\begin{table}[!htb]
+\begin{table}[H]
 \centering\small
 \caption{비교 모델. 자세 = 머리 자세 각도 결합.}
 \label{tab:models}
@@ -105,7 +106,7 @@ ResNet (GAP) & flatten 대신 채널 평균(128) & 0.73M\\
 
 \section{결과}
 \subsection{LOPO 결과}
-\begin{table}[!htb]
+\begin{table}[H]
 \centering\small
 \caption{LOPO 단일 모델 결과(15명 평균). 학습 오차는 증강된 학습 배치의 마지막 에폭 평균.}
 \label{tab:lopo}
@@ -124,14 +125,14 @@ ResNet (GAP) + 증강 & 0.73M & 5.87 & 3.82\\
 \end{table}
 LOPO 결과를 표~\ref{tab:lopo}, 사람별 오차와 쌍체 비교를 그림~\ref{fig:steps}, 표~\ref{tab:stats}에 제시한다. 원 논문~\cite{zhang2015}의 LeNet 계열 모델은 동일 프로토콜에서 6.3$\dg$를 보고하였다.
 
-\begin{figure}[!htb]
+\begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{lopo_paired.png}
 \caption{모델별 LOPO 오차. 점: 테스트 사람, 회색 선: 같은 사람 연결, 검은 막대: 15명 평균, 점선: 6$\dg$. 최종 모델 열의 파란 점은 Part 1보다 오차가 낮은 사람(12명), 주황 점은 높은 사람(3명).}
 \label{fig:steps}
 \end{figure}
 
-\begin{table}[!htb]
+\begin{table}[H]
 \centering\small
 \caption{사람별 15쌍 Wilcoxon 부호순위 검정.}
 \label{tab:stats}
@@ -149,7 +150,7 @@ GAP vs flatten & 9/15 & $-0.37\dg$ & 0.19\\
 \end{table}
 
 \subsection{설정 탐색}
-\begin{table}[!htb]
+\begin{table}[H]
 \centering\small
 \caption{탐색 결과. 상단: 사람 단위 5-fold(8에폭). 하단: fold 1 단일 실행(기준: ResNet (flatten) + 증강 = 6.49$\dg$).}
 \label{tab:search}
@@ -182,7 +183,7 @@ MSE 손실 & 6.82\\
 탐색 결과를 표~\ref{tab:search}에 제시한다. fold 0(15에폭)에서 잔차 연결 유무에 따른 오차는 5.46$\dg$와 5.49$\dg$였다.
 
 \subsection{학습 곡선과 잔여 오차}
-\begin{figure}[!htb]
+\begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{learning_curves.png}
 \caption{LOPO 15 fold 평균 학습 곡선. 실선: 테스트, 점선: 증강된 학습 배치, 음영: 최종 모델의 학습--테스트 오차 차이.}
