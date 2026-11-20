@@ -9,3 +9,7 @@ __pycache__/
 # MPIIGaze project
 mpiigaze/data/
 mpiigaze/results/*.pkl
+
+# word2vec music corpus (정제본만 커밋, 토큰 파일과 학습 로그는 다시 만들 수 있음)
+!word2vec_music/dataset/music_clean.txt.gz
+word2vec_music/logs/

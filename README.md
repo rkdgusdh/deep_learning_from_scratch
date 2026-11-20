@@ -1,3 +1,6 @@
+> **word2vec 음악 말뭉치 실습 (fork addition):** 밑바닥 2권 4장 word2vec을 한국어 위키백과 음악 문서로 학습·평가 -
+> [`word2vec_music/README.md`](word2vec_music/README.md)
+
 > **MPIIGaze project (fork addition):** gaze estimation on the MPIIGaze dataset built with this textbook's
 > NumPy code - see [`mpiigaze/README.md`](mpiigaze/README.md) for the EDA, the training pipeline and the results.
 
